@@ -1,23 +1,35 @@
-#Created by Ryan Rubash and Tyler Ziegler
+# Created by Ryan Rubash and Tyler Ziegler
 # EasyWIM 1.0 2/22/2018
-#for flashing wim images into hard drives
+# for flashing wim images into hard drives
+# written for python 2.7
 
 from Tkinter import *
 import tkFileDialog
+import tkMessageBox
 import subprocess
 
 
 main = Tk()
 
 # global vars
+isWim = False
 wimlocation = StringVar()
 destLocation = StringVar()
 driveList = []
 
 
 def callpath():
+    global isWim
     global wimlocation
     wimlocation.set(tkFileDialog.askopenfilename(parent=main, initialdir="/", title='Please select a directory'))
+    # now checks path and will print error message if not a .wim file
+    if str(wimlocation.get()).endswith(".wim"):
+        isWim = True
+    elif str(wimlocation.get()) is "":
+        isWim = False
+    else:
+        isWim = False
+        tkMessageBox.showerror(title="Warning", message="File selected is not a .wim file")
 
 
 def closescript():
@@ -29,7 +41,7 @@ def scandestination():
     while len(driveList) > 0:
         driveList.pop()
 
-    checkPhyDrives = subprocess.Popen("wmic diskdrive get index,model", stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    checkPhyDrives = subprocess.Popen("wmic diskdrive get index,model", stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     for line in checkPhyDrives.stdout.readlines():
         if "Index" in line:
@@ -42,17 +54,21 @@ def scandestination():
 def startcopy():
     global wimlocation
     global destLocation
+    global isWim
 
-    print(wimlocation.get())
-    print(destLocation)
+    if isWim == True:
+        print(wimlocation.get())
+        print(destLocation)
 
-    closescript()
+        closescript()
+    else:
+        tkMessageBox.showerror(title="Error", message="File selected is either not a .wim file, or no file was selected")
 
 
 def CurSelect(event):
     global destLocation
     widget = event.widget
-    selection=widget.curselection()
+    selection = widget.curselection()
     destLocation = widget.get(selection[0])
 
 
@@ -81,7 +97,7 @@ def destinationframe():
     destinationMessageLabel.grid(row=2)
     # list of destinations found
     destinationOptions = Listbox(main, width=80, selectmode=SINGLE)
-    destinationOptions.bind('<<ListboxSelect>>',CurSelect)
+    destinationOptions.bind('<<ListboxSelect>>', CurSelect)
     destinationOptions.grid(row=3)
     scandestination()
     for item in driveList:
