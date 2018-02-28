@@ -1,5 +1,5 @@
 # Created by Ryan Rubash and Tyler Ziegler
-# EasyWIM 1.0 2/22/2018
+# EasyWIM 0.6 2/22/2018
 # for flashing wim images into hard drives
 # written for python 2.7
 
