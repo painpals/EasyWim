@@ -1,7 +1,6 @@
 # EasyWim
 
-Current Status: Active Development (debug front to backend hooks)
-ETR: 02 March 2018
+Current Status: 1.0 Released
 
 
 Built by Ryan Rubash and Tyler Ziegler 
