@@ -3,23 +3,61 @@
 # for flashing wim images into hard drives
 # written for python 2.7
 
+#1.0 = GUI and initial Alpha
+#1.1 = added fail checks, robocopy for desktopfiles
+
 from Tkinter import *
+import ttk
 import tkFileDialog
 import tkMessageBox
-import subprocess, string, os, uuid, time
+import ScrolledText
+import threading
+import subprocess, string, os, uuid, time, sys
 from shutil import copyfile
 
 
-
 main = Tk()
+root = Tk()
 
 # global vars
 isWim = False
 wimLocation = StringVar()
 destLocation = StringVar()
+captureFrom = StringVar()
+captureTo = StringVar()
+subprocessOutput = None
 driveList = []
 dpartfilename = str(uuid.uuid4().hex) #this is the tempfile for diskpart
 
+class redirectStdOut(object):
+    def __init__(self, text_ctrl):
+        """Constructor"""
+        self.output = text_ctrl
+
+    def write(self, string):
+        """"""
+        self.output.insert(Tkinter.END, string)
+
+rows = 0
+while rows < 50:
+    main.rowconfigure(rows, weight=1)
+    main.columnconfigure(rows, weight=1)
+    rows += 1
+
+tabFrame = Frame(main)
+tabFrame.grid(row=0)
+
+tabLocation = ttk.Notebook(tabFrame)
+tabLocation.grid(row=0, column=0, columnspan=50, rowspan=49, sticky='NESW')
+
+tab1 = ttk.Frame(tabLocation)
+tabLocation.add(tab1, text="Flash Image")
+
+tab2 = ttk.Frame(tabLocation)
+tabLocation.add(tab2, text="Capture Image")
+
+tab1Leftside = Frame(tab1)
+tab1Leftside.grid(column=0)
 
 def callpath():
     global isWim
@@ -117,24 +155,47 @@ def startcopy():
         dpartfile.write('\nassign letter ' + partitionWindows)
         dpartfile.close()
         #EXECUTE THE DISKPART TO CREATE PARTITIONS ON THE SELECTED DISK NUMBER
-        os.system("diskpart /s " + dpartfilename)
+        try:
+            #exDiskPart = subprocess.Popen("diskpart /s " + dpartfilename, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            subprocess.check_call("diskpart /s " + dpartfilename)
+            #print exDiskPart
+            pausing = raw_input()
+            #os.system("diskpart /s " + dpartfilename)
+        except ValueError:
+            os.system("color 40")
+            time.sleep(1)
+            print "ERROR ERROR ERROR"
+            print "There was a problem cleaning and partitioning drive"
+            pausing = raw_input()
+            exit(1)
         os.remove(dpartfilename)
         #COPY UNATTEND FILE
         os.system("copy unattend.xml "+ partitionWindows + ":\\")
         #APPLY IMAGE
+        pausing = raw_input()
         pathWim = wimLocation.get()
         pathWim = pathWim.replace("/","\\")
-        os.system('dism /apply-image /imagefile:"' + pathWim + '" /index:1 /ApplyDir:' + partitionWindows + ':\\')
+        try:
+            os.system('dism /apply-image /imagefile:"' + pathWim + '" /index:1 /ApplyDir:' + partitionWindows + ':\\')
+        except ValueError:
+            os.system("color 40")
+            time.sleep(1)
+            print "ERROR ERROR ERROR"
+            print "There was a problem when imaging the drive"
+            pausing = raw_input()
+            exit(1)
         #MAKE BOOTABLE
         os.system("bcdboot.exe " + partitionWindows + ":\\windows /s " + partitionHidden + ":")
         #COPY DESKTOP FILES
         if os.path.exists("DesktopFiles"):
             from distutils.dir_util import copy_tree
             print "Copying Desktop Files"
-            copy_tree("DesktopFiles", partitionWindows + ":\\Users\\Public\\Desktop")
+            #copy_tree("DesktopFiles", partitionWindows + ":\\Users\\Public\\Desktop")
+            os.system("robocopy DesktopFiles " + partitionWindows + ":\\Users\\Public\\Desktop /E")
         print "Image Process Is Complete"
-        os.system("color 20") #this turns prompt green.. needs errorchecking
+        #os.system("color 20") #this turns prompt green.. needs errorchecking
         time.sleep(5)
+        pausing=raw_input()
         closescript()
     else:
         tkMessageBox.showerror(title="Error", message="File selected is either not a .wim file, or no file was selected")
@@ -153,42 +214,91 @@ def sourceframe():
     titleLabel.title("EasyWIM")
 
     # Source text on top
-    fileMessageLabel = Label(main, text="Source:", anchor=NW, width=70)
+    fileMessageLabel = Label(tab1, text=" Source File:", anchor=NW, width=70)
     fileMessageLabel.grid(row=0)
 
     # entry box for file path
-    source = Entry(main, width=80, textvariable=wimLocation)
+    source = Entry(tab1, width=80, textvariable=wimLocation)
     source.grid(row=1)
 
     # select source button here
-    sourceButton = Button(main, width=20, text="Image Location...", command=callpath)
+    sourceButton = Button(tab1, width=20, text="Image Location...", command=callpath)
     sourceButton.grid(row=1, column=1)
 
 
 def destinationframe():
     global destLocation
     # destination text here
-    destinationMessageLabel = Label(main, text="Destination:", anchor=NW, width=70)
+    destinationMessageLabel = Label(tab1, text=" Destination:", anchor=NW, width=70)
     destinationMessageLabel.grid(row=2)
     # list of destinations found
-    destinationOptions = Listbox(main, width=80, selectmode=SINGLE)
+    destinationOptions = Listbox(tab1, width=80, selectmode=SINGLE)
     destinationOptions.bind('<<ListboxSelect>>', CurSelect)
-    destinationOptions.grid(row=3)
+    destinationOptions.grid(row=3, rowspan=2)
     scandestination()
     for item in driveList:
         destinationOptions.insert(END, item + " Drive")
-    destinationRefresh = Button(main, text="Refresh Drive List", width=20, command=destinationframe)
+    destinationRefresh = Button(tab1, text="Refresh Drive List", width=20, command=destinationframe)
     destinationRefresh.grid(row=3, column=1)
     destLocation = destinationOptions.get(ACTIVE)
 
 
-def optionframe():
+def captureDirectoryframe():
+    global captureDirectory
+    # directory text here
+    captureMessageLabel = Label(tab2, text=" Select capture directory:", anchor=NW, width=70)
+    captureMessageLabel.grid(row=0)
+
+    directoryOptions = Listbox(tab2, width=80, selectmode=SINGLE)
+    #directoryOptions.bind('<<ListboxSelect>>', CurSelect)
+    directoryOptions.grid(row=1)
+    scandestination()
+    for item in driveList:
+        directoryOptions.insert(END, item)
+    directoryRefresh = Button(tab2, text="Refresh Directory List", width=20, command=captureDirectoryframe)
+    directoryRefresh.grid(row=1, column=1, pady=(0,140))
+    captureFrom = directoryOptions.get(ACTIVE)
+
+
+def storeCaptureframe():
+    # Source text on top
+    captureMessageLabel = Label(tab2, text=" Destination:", anchor=NW, width=70)
+    captureMessageLabel.grid(row=2)
+
+    # entry box for file path
+    source = Entry(tab2, width=80, textvariable=captureTo)
+    source.grid(row=3)
+
+    # select source button here
+    sourceButton = Button(tab2, width=20, text="Select Image Destination", command=callpath)
+    sourceButton.grid(row=2, column=1)
+
+def loggingframe():
+    loggingMessageTitle = Label(main, text="Logging:", width=92, anchor=W)
+    loggingMessageTitle.grid(row=2)
+
+    loggingMessageFrame = Frame(main, width=90, height=120)
+    loggingMessageFrame.grid(row=4)
+    loggingMessageFrame.columnconfigure(0, weight=10)
+    scrollbar = Scrollbar(loggingMessageFrame, bg="gray30", troughcolor="gray4")
+    scrollbar.pack(side="right", fill="y")
+    loggingMessageBody = Text(loggingMessageFrame, background="gray17", fg="ghost white", yscrollcommand=scrollbar.set)
+
+    loggingMessageBody.config(state="normal")
+    loggingMessageBody.insert(INSERT, "EasyWim Initialized...")
+    loggingMessageBody.pack(side="left", fill="both", expand=True)
+
+    loggingMessageBody.config(state="disabled")
+    scrollbar.config(command=loggingMessageBody.yview)
+
+
+def optionframe(w, x, y, z):
     # start/cancel container
-    optionContainer = Frame(main)
-    optionContainer.grid(row=4, column=1)
+    optionContainer = Frame(x)
+    optionContainer.grid(row=w, column=1, pady=(z, 0))
 
     # insert start button
-    startButton = Button(optionContainer, width=10, text="Start", command=startcopy)
+    startButton = Button(optionContainer, width=10, text="Start", command=y)
     startButton.grid(row=0, column=0)
 
     # insert cancel button
@@ -196,8 +306,18 @@ def optionframe():
     cancelButton.grid(row=0, column=1)
 
 
+main.resizable(width="false", height="false")
+root.withdraw()
+
+#initializetabs()
 sourceframe()
 destinationframe()
-optionframe()
+optionframe(4, tab1, startcopy, 110)
+
+captureDirectoryframe()
+storeCaptureframe()
+optionframe(3, tab2, None, 0)
+
+loggingframe()
 
 main.mainloop()
