@@ -1,6 +1,6 @@
 # EasyWim
 
-Current Status: 1.0 Released
+Current Status: 1.0.3 Released
 
 
 Built by Ryan Rubash and Tyler Ziegler 
@@ -11,3 +11,8 @@ Simply Select the file location, the destination drive you want to flash to, and
 
 Currently supports Windows 7,8, and 10
 
+1.0.0 = (2/22/2018) GUI and initial Alpha
+1.0.1 = added fail checks, robocopy for desktopfiles
+1.0.2 = (3/20/2018) added blacklist file, timestamp
+1.0.3 = Separation of GUI Generation and Logic functions, added raise ValueError
+        added checkbox to GUI for copying DesktopFiles, added textboxes for stdout with details
