@@ -284,13 +284,14 @@ def Generate_Drive_List():
             continue
         drive_list.append(line.rstrip())
         drive_list = filter(None, drive_list)
-    i = 0 #this counter is to run through all the options of the system.. later we might try math of len*len
-    while i < 500:
-        for drive in drive_list:
-            for anti in Blacklist:
-                if anti.lower() in drive.lower():
-                    drive_list.remove(drive)
-        i +=1
+    if os.path.exists("Blacklist.txt"):
+        i = 0 #this counter is to run through all the options of the system.. later we might try math of len*len
+        while i < 500:
+            for drive in drive_list:
+                for anti in Blacklist:
+                    if anti.lower() in drive.lower():
+                        drive_list.remove(drive)
+            i +=1
     return drive_list
 
 def abox(*args):
