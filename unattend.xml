@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<unattend xmlns="urn:schemas-microsoft-com:unattend">
+  <settings pass="oobeSystem">
+    <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+      <InputLocale>0409:00000409</InputLocale>
+      <SystemLocale>en-US</SystemLocale>
+      <UILanguage>en-US</UILanguage>
+      <UserLocale>en-US</UserLocale>
+    </component>
+    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+      <UserAccounts>
+        <LocalAccounts>
+          <LocalAccount wcm:action="add">
+            <DisplayName>UserAdmin</DisplayName>
+            <Group>Administrators</Group>
+            <Name>Local_Admin</Name>
+          </LocalAccount>
+          <LocalAccount wcm:action="add">
+            <DisplayName>User</DisplayName>
+            <Group>Users</Group>
+            <Name>Local_User</Name>
+          </LocalAccount>
+        </LocalAccounts>
+      </UserAccounts>
+      <AutoLogon>
+        <Enabled>true</Enabled>
+        <Username>Administrator</Username>
+        <Domain>.</Domain>
+        <Password>
+          <Value>UABhAHMAcwB3AG8AcgBkAA==</Value>
+          <PlainText>false</PlainText>
+        </Password>
+      </AutoLogon>
+      <FirstLogonCommands>
+        <SynchronousCommand wcm:action="add">
+          <CommandLine>cmd /c reg add HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\Associations /v LowRiskFileTypes /t REG_SZ /d *.bat;*.exe /f</CommandLine>
+          <Description>Disable security warning on opening *.exe and *.bat</Description>
+          <Order>1</Order>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <CommandLine>cmd /c reg add HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v ConsentPromptBehaviorAdmin /t REG_DWORD /d 0 /f</CommandLine>
+          <Description>ConsentPromptBehaviorAdmin</Description>
+          <Order>2</Order>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <CommandLine>net user Local_Admin ""</CommandLine>
+          <Description>reset password to blank value</Description>
+          <Order>3</Order>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <CommandLine>net user Local_User ""</CommandLine>
+          <Description>reset password to blank value</Description>
+          <Order>4</Order>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <CommandLine>%SystemDrive%\imaging\wap\wap.exe install %SystemDrive%\imaging\wap\WimagerRecipe.xml -logfile:%SystemDrive%\imaging\wap\WimagerRecipe.log</CommandLine>
+          <Description>Start WAP Post-OS processing now</Description>
+          <Order>5</Order>
+        </SynchronousCommand>
+      </FirstLogonCommands>
+      <Display>
+      </Display>
+      <OOBE>
+        <HideEULAPage>true</HideEULAPage>
+        <SkipMachineOOBE>true</SkipMachineOOBE>
+        <SkipUserOOBE>true</SkipUserOOBE>
+        <NetworkLocation>Work</NetworkLocation>
+      </OOBE>
+    </component>
+  </settings>
+  <settings pass="specialize">
+    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+      <OEMInformation>
+        <Manufacturer>Intel Corporation</Manufacturer>
+        <SupportHours>[ REPLACE WITH SUPPORT HOURS ]</SupportHours>
+        <SupportPhone>[ REPLACE WITH SUPPORT PHONE ]</SupportPhone>
+        <SupportURL>[ REPLACE WITH SUPPORT WEBSITE ]</SupportURL>
+      </OEMInformation>
+    </component>
+    <component name="Networking-MPSSVC-Svc" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+      <FirewallGroups />
+      <DomainProfile_EnableFirewall>false</DomainProfile_EnableFirewall>
+      <PrivateProfile_EnableFirewall>false</PrivateProfile_EnableFirewall>
+      <PublicProfile_EnableFirewall>false</PublicProfile_EnableFirewall>
+      <PrivateProfile_DisableNotifications>true</PrivateProfile_DisableNotifications>
+      <PublicProfile_DisableNotifications>true</PublicProfile_DisableNotifications>
+    </component>
+  </settings>
+  <settings pass="offlineServicing">
+    <component name="Microsoft-Windows-LUA-Settings" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <EnableLUA>false</EnableLUA>
+    </component>
+  </settings>
+  <cpi:offlineImage cpi:source="" xmlns:cpi="urn:schemas-microsoft-com:cpi" />
+</unattend>
