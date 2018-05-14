@@ -7,8 +7,8 @@
 1.0.2 = (3/20/2018) added blacklist file, timestamp
 1.0.3 = Separation of GUI Generation and Logic functions, added raise ValueError
         added checkbox to GUI for copying DesktopFiles, added textboxes for stdout with details
-1.0.4 = Rewritten GUI to have more specific variables, added tab for wim capture (not functional)
-        added error_stop function, added drive to title when running
+1.0.4 = Rewritten GUI to have more specific variables, added tab for wim capture
+        added error_stop function, added drive/volume to title when running, minimize GUI on run
 """
 
 version = "1.0.4"
@@ -23,6 +23,7 @@ import threading
 import subprocess, string, os, uuid, time, sys, datetime
 main = Tk()
 main.resizable(width=False, height=False)
+cwd = os.getcwd()
 
 
 ############################################################################
@@ -67,9 +68,9 @@ def frame_deploy():
     tab1_lbl_destintation = Label(tab_deploy, text=" Destination Drive :", anchor=NW, width=70)
     tab1_lbl_destintation.grid(row=2)
     tab1_lstbx_destinationdrives = Listbox(tab_deploy, width=80, selectmode=SINGLE)
-    tab1_lstbx_destinationdrives.bind('<<ListboxSelect>>', cursor_select)
+    tab1_lstbx_destinationdrives.bind('<<ListboxSelect>>', tab1_lstbx_select)
     tab1_lstbx_destinationdrives.grid(row=3, rowspan=2)
-    Generate_Drive_List()
+    generate_drive_list()
     for item in drive_list:
         tab1_lstbx_destinationdrives.insert(END, item)
     tab1_btn_refreshdrives = Button(tab_deploy, text="Refresh Drives", width=20, command=frame_deploy)
@@ -88,48 +89,55 @@ def frame_deploy():
     destination_drive = tab1_lstbx_destinationdrives.get(ACTIVE)
 
 #tab 2 variables
-wimSaveLocation = StringVar()
-lst_volumes = []
+wim_save_location = StringVar()
+volume_list = []
 def frame_capture():
     tab2_lbl_save = Label(tab_capture, text=" Destination :", anchor=NW, width=70)
     tab2_lbl_save.grid(row=0)
-    tab2_txtbox_savelocation = Entry(tab_capture, width=80, textvariable=wimSaveLocation)
+    tab2_txtbox_savelocation = Entry(tab_capture, width=80, textvariable=wim_save_location)
     tab2_txtbox_savelocation.grid(row=1)
-    tab2_btn_selectsave = Button(tab_capture, width=20, text="Save Location...", command=None) #change command later
+    tab2_btn_selectsave = Button(tab_capture, width=20, text="Save Location...", command=trig_save_location)
     tab2_btn_selectsave.grid(row=1, column=1)
 
     tab2_lbl_sourcevol = Label(tab_capture, text=" Source Volume :", anchor=NW, width=70)
     tab2_lbl_sourcevol.grid(row=2)
-    tab2_lstbx_sourcevol = Listbox(tab_capture, width=80, selectmode=SINGLE)
-    tab2_lstbx_sourcevol.bind('<<ListboxSelect>>', cursor_select)
-    tab2_lstbx_sourcevol.grid(row=3, rowspan=2)
-    #need the function to get source volumes
-    for item in lst_volumes:
-        tab2_lstbx_sourcevol.insert(END, item)
-    tab2_btn_refreshvolumes = Button(tab_capture, text="Refresh Volumes", width=20, command=None) #change command later
+    tab2_lstbx_sourcevolumes = Listbox(tab_capture, width=80, selectmode=SINGLE)
+    tab2_lstbx_sourcevolumes.bind('<<ListboxSelect>>', tab2_lstbx_select)
+    tab2_lstbx_sourcevolumes.grid(row=3, rowspan=2)
+    generate_volume_list()
+    for item in volume_list:
+        tab2_lstbx_sourcevolumes.insert(END, item)
+    tab2_btn_refreshvolumes = Button(tab_capture, text="Refresh Volumes", width=20, command=frame_capture)
     tab2_btn_refreshvolumes.grid(row=3, column=1)
 
     tab2_capture_exit = Frame(tab_capture)
     tab2_capture_exit.grid(row=5, column=1)
-    tab2_btn_capture = Button(tab2_capture_exit, width=10, text="Capture", command=None) #change command later
+    tab2_btn_capture = Button(tab2_capture_exit, width=10, text="Capture", command=trig_capture)
     tab2_btn_capture.grid(row=0, column=0)
     tab2_btn_exit = Button(tab2_capture_exit, width=10, text="Exit", command=exit_script)
     tab2_btn_exit.grid(row=0, column=1)
 
     tab2_lbl_note = Label(tab_capture, text="Note: Capture is for Windows OS")
     tab2_lbl_note.grid(row=5, column=0, sticky=W)
+    global source_volume
+    source_volume = tab2_lstbx_sourcevolumes.get(ACTIVE)
 
 
 def frame_about():
-    about_lbl = Label(tab_about, text="This EasyWim was created by Ryan Rubash and Tyler Ziegler\n\nIt's purpose is to speed up the WIM deployment process", anchor=NW)
+    about_lbl = Label(tab_about, text="This EasyWim was created by Ryan Rubash and Tyler Ziegler\n\nIt's purpose is to speed up the WIM deployment process\n\n\", anchor=NW)
     about_lbl.grid(row=0, rowspan=3)
     
-
-def cursor_select(event): #this is the event for clicking on the drive in the tab_deploy
-    global destLocation
+def tab1_lstbx_select(event):
+    global destination_drive
     widget = event.widget
     selection = widget.curselection()
-    destLocation = widget.get(selection[0])
+    destination_drive = widget.get(selection)
+
+def tab2_lstbx_select(event):
+    global source_volume
+    widget = event.widget
+    selection = widget.curselection()
+    source_volume = widget.get(selection)
 
 ############################################################################
 ########################### GUI Triggers
@@ -137,28 +145,31 @@ def cursor_select(event): #this is the event for clicking on the drive in the ta
 #tab1
 def trig_wim_location():
     global wim_location
-    wim_location.set(tkFileDialog.askopenfilename(parent=main, initialdir="/", title="Select your .wim file.", filetypes=(("WIM File","*.wim"),("All Files","*.*"))))
+    wim_location.set(tkFileDialog.askopenfilename(parent=main, initialdir=cwd, title="Select your .wim file.", defaultextension=".wim", filetypes=(("WIM File","*.wim"),("All Files","*.*"))))
     
 def trig_deploy():
-    os.system("title EasyWim_" + str(version) + ": " + str(destination_drive))
-    time_start = datetime.datetime.now()
+    global destination_drive
     global wim_location
+    destination_drive_split = destination_drive.split();
+    destination_drive_num = destination_drive_split[0]
+    destination_drive_fullname = ""
+    for x in destination_drive_split:
+    	destination_drive_fullname = destination_drive_fullname + " " + str(x)
+    os.system("title EasyWim_" + str(version) + " -- " + str(destination_drive_fullname))
+    time_start = datetime.datetime.now()
+    main.iconify() #minimize GUI
     wim_location = str(wim_location.get())
     wim_location = wim_location.replace("/","\\")
     wim_name = wim_location.split("\\"); wim_name = wim_name[-1]; wim_name = wim_name.replace(".wim","") ## get just the name
-    global destination_drive
-    destination_drive_num = destination_drive.split(); destination_drive_num = destination_drive_num[0]
     dpart_filename = str(uuid.uuid4().hex) #this is the tempfile for diskpart
-    ## Check for unattend.xml file
-    if not os.path.isfile("unattend.xml"):
+    if not os.path.isfile("unattend.xml"): #Check for unattend.xml file
         error_stop("Error: No unattend.xml found in directory")
-    ## Verify file is WIM and exists
-    if not str(wim_location).endswith(".wim"):
+    if not str(wim_location).endswith(".wim"): #Check if file is WIM
         error_stop("Error: File selected is not a wim")
-    if not os.path.exists(wim_location):
+    if not os.path.exists(wim_location): #Check if WIM in location given
         error_stop("Error: Wim file not found")
     ## Clean
-    abox("CLEANING DRIVE", destination_drive)
+    abox("CLEANING DRIVE", destination_drive_fullname)
     dpart_file = open(dpart_filename, "w")
     dpart_file.write('select disk ' + str(destination_drive_num))
     dpart_file.write('\nclean')
@@ -246,25 +257,53 @@ def trig_deploy():
     file1 = open(volume_windows + ":\\Users\\Public\\Desktop\\" + wim_name + ".txt", "w")
     file1.close()
     ## Deploy Complete
+    #main.deiconify() #restores GUI
     os.system("color 20")
     time_end = datetime.datetime.now()
     time_dif = time_end - time_start
     time_dif = divmod(time_dif.days * 8600 + time_dif.seconds, 60)
-    abox("--IMAGE PROCESS COMPLETE--","Run Time = " + str(time_dif[0]) + " minutes and " + str(time_dif[1]) + " seconds.","WIM: " + str(wim_name),"Drive: " + destLocation)
+    abox("--IMAGE DEPLOY PROCESS COMPLETE--","Run Time = " + str(time_dif[0]) + " minutes and " + str(time_dif[1]) + " seconds.","WIM: " + str(wim_name),"Drive: " + str(destination_drive_fullname))
     pausing = raw_input("\nPress ENTER to EXIT")
     exit()
 
 #tab2
 def trig_save_location():
-    print "Clicked Save Location"
+    global wim_save_location
+    wim_save_location.set(tkFileDialog.asksaveasfilename(title='Save Location', initialdir=cwd, defaultextension='wim', filetypes=(("WIM File","*.wim"),("All Files","*.*"))))
 
 def trig_capture():
-    print "Clicked Capture"
+    global wim_save_location
+    global source_volume
+    main.iconify() #minimize GUI
+    source_volume_letter = str(source_volume[:1])
+    source_volume_fullname = ""
+    source_volume_split = source_volume.split()
+    for x in source_volume_split:
+        source_volume_fullname = source_volume_fullname + " " + str(x)
+    os.system("title EasyWim_" + str(version) + " -- " + str(source_volume_fullname))
+    time_start = datetime.datetime.now()
+    wim_save_location = str(wim_save_location.get())
+    wim_save_location = wim_save_location.replace("/","\\") #this is now the correct full path for saving the image
+    abox("CAPTURING WIM FILE", "Source Volume-- " + str(source_volume_fullname))
+    try:
+        subprocess.check_call("Dism /Capture-Image /ImageFile:" + wim_save_location + " /CaptureDir:" + source_volume_letter + ":\\ /Name:Windows")
+    except subprocess.CalledProcessError:
+        error_stop("Error: There was a problem capturing the WIM")
+    os.system("color 20")
+    time_end = datetime.datetime.now()
+    time_dif = time_end - time_start
+    time_dif = divmod(time_dif.days * 8600 + time_dif.seconds, 60)
+    abox("--IMAGE CAPTURE PROCESS COMPLETE--","Run Time = " + str(time_dif[0]) + " minutes and " + str(time_dif[1]) + " seconds.", "Source Volume: " + str(source_volume_fullname))
+    pausing = raw_input("\nPress ENTER to EXIT")
+    exit()
+
+
+
 
 ############################################################################
 ########################### Functions
 ############################################################################
-def Generate_Drive_List():
+def generate_drive_list():
     import os, subprocess
     os.system("color")
     os.system("cls")
@@ -278,8 +317,8 @@ def Generate_Drive_List():
     global drive_list
     while len(drive_list) > 0:
         drive_list.pop()
-    checkPhyDrives = subprocess.Popen("wmic diskdrive get index,model,serialnumber", stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    for line in checkPhyDrives.stdout.readlines():
+    poll_phys_drives = subprocess.Popen("wmic diskdrive get index,model,serialnumber", stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    for line in poll_phys_drives.stdout.readlines():
         if "Index" in line:
             continue
         drive_list.append(line.rstrip())
@@ -293,6 +332,22 @@ def Generate_Drive_List():
                         drive_list.remove(drive)
             i +=1
     return drive_list
+
+def generate_volume_list():
+    import os, subprocess
+    os.system("color")
+    global volume_list
+    while len(volume_list) > 0:
+        volume_list.pop()
+    poll_logic_drives = subprocess.Popen("wmic logicaldisk get name,volumename", stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    for line in poll_logic_drives.stdout.readlines():
+        if "VolumeName" in line:
+            continue
+        volume_list.append(line.rstrip())
+        volume_list = filter(None, volume_list)
+    return volume_list
+    
+    
 
 def abox(*args):
     masterlist = []
@@ -326,29 +381,19 @@ def abox(*args):
 
 def error_stop(errorname):
     os.system("color 40")
-    raise ValueError(errorname)
+    raise ValueError(str(errorname))
 
 def exit_script():
     exit()
-
-
-
-
-
-
-
-
 
 
 ############################################################################
 ########################### Execution
 ############################################################################
 
-os.system("cls")
-os.system("color")
+os.system("cls"); os.system("color")
 frame_gui()
 frame_deploy()
 frame_capture()
-
 frame_about()
 main.mainloop()
